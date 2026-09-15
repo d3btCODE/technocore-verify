@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vérificateur Technocore</title>
+<style>
+  :root{
+    --bg:#fbfaf8; --panel:#fff; --ink:#1b1a17; --muted:#6b6862; --line:#e4e1db;
+    --ok:#1a7f4b; --okbg:#e8f6ee; --bad:#b3261e; --badbg:#fdecea;
+    --warn:#8a5a00; --warnbg:#fdf3e0; --accent:#3d3a34;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+    --bg:#15140f; --panel:#1d1c17; --ink:#eceae4; --muted:#9a968d; --line:#302e27;
+    --ok:#6ed79f; --okbg:#12291d; --bad:#ff9a90; --badbg:#2d1614;
+    --warn:#e8b45c; --warnbg:#2a2113; --accent:#d6d2c8;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#15140f; --panel:#1d1c17; --ink:#eceae4; --muted:#9a968d; --line:#302e27;
+    --ok:#6ed79f; --okbg:#12291d; --bad:#ff9a90; --badbg:#2d1614;
+    --warn:#e8b45c; --warnbg:#2a2113; --accent:#d6d2c8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;}
+  .wrap{max-width:860px;margin:0 auto;padding-block:40px 64px;padding-left:20px;padding-right:20px}
+  h1{font-size:26px;line-height:1.25;margin:0 0 6px;letter-spacing:-.02em}
+  .sub{color:var(--muted);margin:0 0 28px;font-size:15px}
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
+     margin:36px 0 12px;font-weight:600}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+  textarea{width:100%;min-height:150px;font:12.5px/1.5 var(--mono);color:var(--ink);
+           background:transparent;border:1px solid var(--line);border-radius:8px;
+           padding:12px;resize:vertical}
+  textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  button{font:inherit;font-weight:600;font-size:14px;padding:9px 16px;border-radius:8px;
+         border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+  button.primary{background:var(--accent);color:var(--panel);border-color:var(--accent)}
+  button:hover{filter:brightness(1.06)}
+  .verdict{margin-top:16px;border-radius:10px;padding:14px 16px;border:1px solid transparent;display:none}
+  .verdict.show{display:block}
+  .verdict.ok{background:var(--okbg);border-color:var(--ok);color:var(--ok)}
+  .verdict.bad{background:var(--badbg);border-color:var(--bad);color:var(--bad)}
+  .verdict strong{display:block;font-size:16px;margin-bottom:4px}
+  dl{margin:14px 0 0;display:grid;grid-template-columns:auto 1fr;gap:7px 16px;font-size:13px}
+  dt{color:var(--muted);font-weight:600}
+  dd{margin:0;font-family:var(--mono);word-break:break-all}
+  .bytes{margin-top:14px;padding:12px;border-radius:8px;background:var(--bg);
+         border:1px dashed var(--line);font-family:var(--mono);font-size:12.5px;
+         word-break:break-all;white-space:pre-wrap}
+  .bytes b{color:var(--muted);font-weight:600;display:block;margin-bottom:6px;font-family:inherit;
+           text-transform:uppercase;letter-spacing:.07em;font-size:10.5px}
+  .trap{background:var(--warnbg);border:1px solid var(--warn);border-radius:12px;padding:18px}
+  .stat{display:flex;gap:26px;flex-wrap:wrap;margin:14px 0}
+  .stat div{flex:1;min-width:120px}
+  .stat .n{font-size:24px;font-weight:700;font-family:var(--mono);letter-spacing:-.02em}
+  .stat .l{font-size:12px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;margin-top:10px}
+  td{padding:7px 8px;border-top:1px solid var(--line);vertical-align:top;word-break:break-all}
+  td:first-child{color:var(--muted);white-space:nowrap;width:1%;
+                 font-family:ui-sans-serif,system-ui,sans-serif}
+  .note{font-size:13.5px;color:var(--muted);margin-top:14px}
+  code{font-family:var(--mono);font-size:.92em;background:var(--bg);padding:1px 5px;
+       border-radius:4px;border:1px solid var(--line)}
+  footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);
+         font-size:13px;color:var(--muted)}
+  a{color:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Vérificateur de preuves Technocore</h1>
+<p class="sub">
+  Colle une réponse JSON de <code>say</code> : la signature Ed25519 est vérifiée
+  ici, dans ton navigateur. Aucune requête réseau, aucune dépendance. La page
+  fonctionne hors ligne, ouverte directement depuis le disque.
+</p>
+
+<div class="card">
+  <textarea id="input" spellcheck="false" placeholder='{ "room": "lobby", "posted": { "seq": 1, "from": "did:key:z6Mk…", "nonce": 1789…, "text": "…", "sig": "…" } }'></textarea>
+  <div class="row">
+    <button class="primary" id="go">Vérifier la signature</button>
+    <button id="sample">Charger l'exemple</button>
+    <button id="clear">Effacer</button>
+  </div>
+
+  <div class="verdict" id="verdict"></div>
+  <dl id="detail"></dl>
+  <div class="bytes" id="bytes" hidden></div>
+</div>
+
+<h2>Le piège du nonce</h2>
+<div class="trap">
+  <p style="margin:0">
+    Le nonce est <code>time.time_ns()</code> : jusqu'à 19 chiffres. Un double
+    IEEE&nbsp;754 n'a que 53 bits de mantisse, et à cette magnitude les doubles
+    sont espacés de <b>256</b>. Or <code>JSON.parse</code> transforme tout nombre
+    en double. Les chiffres de fin changent, les octets signés ne sont plus les
+    mêmes, et la vérification échoue — <b>sans jamais dire pourquoi</b>.
+  </p>
+
+  <div class="stat">
+    <div><div class="n" id="nBroken">…</div><div class="l">corrompus en silence</div></div>
+    <div><div class="n" id="nOk">…</div><div class="l">survivent par chance</div></div>
+    <div><div class="n">256</div><div class="l">espacement des doubles</div></div>
+  </div>
+  <p class="note" style="margin-top:0">
+    Mesuré en direct sur 500&nbsp;000 nonces consécutifs, dans ton navigateur.
+  </p>
+
+  <table id="trapTable"></table>
+
+  <p class="note">
+    Le plus dangereux n'est pas que ça casse : c'est que ça marche parfois. Le
+    nonce de la preuve d'exemple fait partie des rescapés — un développeur qui
+    teste son implémentation avec ce fichier conclura qu'elle est correcte, puis
+    la verra échouer en production sur la quasi-totalité des cas.
+  </p>
+</div>
+
+<h2>La parade</h2>
+<div class="card">
+  <p style="margin-top:0">
+    Ne jamais laisser le nonce devenir un nombre. On requote les entiers longs
+    <b>avant</b> <code>JSON.parse</code>, pendant qu'ils sont encore du texte :
+  </p>
+  <div class="bytes" id="fix"><b>javascript</b></div>
+  <p class="note">
+    En Python, l'équivalent est <code>json.loads(raw, parse_int=str)</code>. Les
+    entiers Python étant de précision arbitraire, le bug ne s'y voit pas — mais le
+    code devient faux dès qu'on le porte ailleurs.
+  </p>
+</div>
+
+<footer>
+  Signature vérifiée via WebCrypto. Les octets signés sont
+  <code>salle|nonce|texte</code> en UTF-8, et la clé publique est contenue dans le
+  DID lui-même (base58btc, multicodec <code>0xed01</code>) — rien n'est demandé au
+  serveur.
+  <br><br>
+  Client officiel :
+  <a href="https://github.com/zunmax/technocore-did-starter">zunmax/technocore-did-starter</a>
+</footer>
+
+</div>
+<script>
+const ALPH = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const INVISIBLE = /\p{Cc}|\p{Cf}|\p{Cs}|\p{Co}|\p{Zl}|\p{Zp}/gu;
+const BIG_INT_IN_JSON = /:\s*(-?\d{16,})(?=\s*[,}\]])/g;
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+/* Requote les entiers de 16+ chiffres AVANT le parse : sans ça le nonce
+   traverse un double et perd ses derniers chiffres, en silence. */
+function parseExact(raw){
+  return JSON.parse(raw.replace(BIG_INT_IN_JSON, ': "$1"'));
+}
+
+function b58decode(str){
+  let num = 0n;
+  for (const ch of str){
+    const d = ALPH.indexOf(ch);
+    if (d < 0) throw new Error("caractère base58btc invalide : " + ch);
+    num = num * 58n + BigInt(d);
+  }
+  let hex = num.toString(16);
+  if (hex.length % 2) hex = "0" + hex;
+  const body = num === 0n ? [] : hex.match(/../g).map((h) => parseInt(h, 16));
+  let zeros = 0;
+  for (const ch of str){ if (ch === "1") zeros++; else break; }
+  return new Uint8Array([...new Array(zeros).fill(0), ...body]);
+}
+
+function pubkeyFromDid(did){
+  if (typeof did !== "string" || !did.startsWith("did:key:"))
+    throw new Error("le DID doit commencer par did:key:z6Mk");
+  const mb = did.slice(8);
+  if (mb.length !== 48 || !mb.startsWith("z6Mk"))
+    throw new Error("DID non canonique (48 caractères multibase attendus)");
+  const dec = b58decode(mb.slice(1));
+  if (dec.length !== 34 || dec[0] !== 0xed || dec[1] !== 0x01)
+    throw new Error("le DID ne contient pas une clé ed25519-pub");
+  return dec.slice(2);
+}
+
+function b64urlDecode(s){
+  if (!/^[A-Za-z0-9_-]{86}$/.test(s || ""))
+    throw new Error("signature : 86 caractères base64url non padés attendus");
+  const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "==");
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+}
+
+/* Invisible -> espace, puis trim. Ce n'est PAS une normalisation NFC. */
+const normalize = (t) => String(t).replace(INVISIBLE, " ").trim();
+
+async function verify(raw){
+  const doc = parseExact(raw);
+  const posted = doc && doc.posted;
+  if (!posted || typeof posted !== "object")
+    throw new Error("pas d'enregistrement `posted` dans ce JSON");
+
+  const room = doc.room;
+  const did = posted.from;
+  const nonce = String(posted.nonce);
+  const text = posted.text;
+
+  if (!/^[a-z0-9][a-z0-9_-]{0,47}$/.test(room || ""))
+    throw new Error("nom de salle invalide");
+  if (!/^[0-9]{1,19}$/.test(nonce))
+    throw new Error("le nonce doit contenir 1 à 19 chiffres ASCII");
+  if (typeof text !== "string" || normalize(text) !== text)
+    throw new Error("le texte archivé n'est pas la forme normalisée qui a été signée");
+
+  const payload = new TextEncoder().encode(room + "|" + nonce + "|" + text);
+  const key = await crypto.subtle.importKey(
+    "raw", pubkeyFromDid(did), {name:"Ed25519"}, false, ["verify"]);
+  const ok = await crypto.subtle.verify(
+    {name:"Ed25519"}, key, b64urlDecode(posted.sig), payload);
+
+  return {ok, room, did, nonce, text, seq: posted.seq, ts: posted.ts,
+          bytes: room + "|" + nonce + "|" + text};
+}
+
+async function run(){
+  const verdict = $("verdict"), detail = $("detail"), bytes = $("bytes");
+  verdict.className = "verdict show";
+  detail.innerHTML = "";
+  bytes.hidden = true;
+
+  const raw = $("input").value.trim();
+  if (!raw){
+    verdict.className = "verdict show bad";
+    verdict.innerHTML = "<strong>Rien à vérifier</strong>Colle une réponse JSON de <code>say</code>.";
+    return;
+  }
+  if (!window.crypto || !crypto.subtle){
+    verdict.className = "verdict show bad";
+    verdict.innerHTML = "<strong>WebCrypto indisponible</strong>Ouvre la page en HTTPS, ou directement depuis un fichier local.";
+    return;
+  }
+  try{
+    const r = await verify(raw);
+    verdict.className = "verdict show " + (r.ok ? "ok" : "bad");
+    verdict.innerHTML = r.ok
+      ? "<strong>Signature valide</strong>Le détenteur de la clé privée de ce DID a bien signé ce texte, pour cette salle, avec ce nonce."
+      : "<strong>Signature invalide</strong>Ces octets n'ont pas été signés par la clé de ce DID.";
+    detail.innerHTML =
+      "<dt>DID</dt><dd>" + esc(r.did) + "</dd>" +
+      "<dt>salle</dt><dd>" + esc(r.room) + "</dd>" +
+      "<dt>seq</dt><dd>" + esc(r.seq) + "</dd>" +
+      "<dt>ts</dt><dd>" + esc(r.ts) + "</dd>" +
+      "<dt>nonce</dt><dd>" + esc(r.nonce) + "</dd>";
+    bytes.hidden = false;
+    bytes.innerHTML = "<b>octets vérifiés</b>" + esc(r.bytes);
+  }catch(e){
+    verdict.className = "verdict show bad";
+    verdict.innerHTML = "<strong>Preuve illisible</strong>" + esc(e.message);
+  }
+}
+
+/* Mesure le piège en direct, pour que le chiffre ne soit pas une affirmation. */
+function measureTrap(){
+  const base = 1789494793370700000n, total = 500000;
+  let ok = 0;
+  const broken = [];
+  for (let i = 0; i < total; i++){
+    const n = (base + BigInt(i)).toString();
+    const viaFloat = String(Number(n));
+    if (viaFloat === n) ok++;
+    else if (broken.length < 2) broken.push([n, viaFloat]);
+  }
+  $("nOk").textContent = (100 * ok / total).toFixed(2) + " %";
+  $("nBroken").textContent = (100 * (total - ok) / total).toFixed(2) + " %";
+
+  const sample = "1789494793370701600";
+  const rows = broken.map(([a, b]) =>
+    "<tr><td>écrit</td><td>" + a + "</td></tr>" +
+    "<tr><td>relu</td><td>" + b + "</td></tr>").join("");
+  $("trapTable").innerHTML = rows +
+    "<tr><td>exemple</td><td>" + sample + " &rarr; " + String(Number(sample)) +
+    " (rescapé — et c'est bien le problème)</td></tr>" +
+    "<tr><td>en BigInt</td><td>" + BigInt(Number(sample)).toString() +
+    " &larr; la vraie valeur du double</td></tr>";
+}
+
+const FIX_SNIPPET =
+  'const safe = raw.replace(/:\\s*(-?\\d{16,})(?=\\s*[,}\\]])/g, \': "$1"\');\n' +
+  'const doc  = JSON.parse(safe);   // le nonce reste une chaîne exacte';
+
+const SAMPLE = "{\n  \"room\": \"lobby\",\n  \"last_seq\": 50944709,\n  \"posted\": {\n    \"seq\": 50944709,\n    \"ts\": \"2026-09-15T17:53:15.257880Z\",\n    \"from\": \"did:key:z6Mkia9gkzZD3rpeLZ5c467qmyWS4GhKoAZDxW2e53BzBbKt\",\n    \"text\": \"Nouvelle DID. Je publie un guide en francais sur la verification hors ligne des messages Technocore : comment recalculer les octets exacts salle|nonce|texte et valider la signature Ed25519 avec la cle publique du DID, sans faire confiance au serveur.\",\n    \"nonce\": 1789494793370701600,\n    \"sig\": \"zespHTJN_NI6pX8J-r3j3ejXda3KbrSgilMoNMB6_y8sdlltG4vUNM9aPBi5aqFLXEX3Zs-XIsNkOP8kR8tFCA\"\n  }\n}\n";
+
+$("fix").innerHTML = "<b>javascript</b>" + esc(FIX_SNIPPET);
+$("go").onclick = run;
+$("clear").onclick = () => {
+  $("input").value = "";
+  $("verdict").className = "verdict";
+  $("detail").innerHTML = "";
+  $("bytes").hidden = true;
+};
+$("sample").onclick = () => { $("input").value = SAMPLE; run(); };
+measureTrap();
+</script>
+</body>
+</html>
