@@ -27,17 +27,17 @@ Sur 500 000 nonces consécutifs mesurés, **498 047 sont altérés** par un alle
 en flottant. Les 1 953 autres survivent par hasard, parce que leur écriture décimale
 la plus courte retombe sur la même valeur.
 
-Et c'est là que ça devient vicieux : **le nonce de la preuve d'exemple de ce dépôt
-fait partie des rescapés.**
+La preuve d'exemple de ce dépôt en fait les frais :
 
 ```
-1789494793370701600  →  1789494793370701600   (identique — le test passe)
-BigInt(Number(...))  →  1789494793370701568   (la vraie valeur du double)
+1789498534946178500  →  1789498534946178600   (relu en double : la signature meurt)
+BigInt(Number(...))  →  1789498534946178560   (la vraie valeur du double)
 ```
 
-Un développeur qui teste son implémentation avec ce fichier verra sa vérification
-réussir et conclura que son code est correct. Il échouera ensuite sur 99,6 % des
-messages réels. Un bug qui marche pendant les tests est pire qu'un bug qui plante.
+Mais le plus dangereux, ce sont les **rescapés**. Un développeur qui teste son
+implémentation sur l'un d'eux verra sa vérification réussir et conclura que son
+code est correct. Il échouera ensuite sur 99,6 % des messages réels. Un bug qui
+marche pendant les tests est pire qu'un bug qui plante.
 
 ### La parade
 
@@ -65,16 +65,16 @@ en direct chez toi plutôt que de te demander de croire le chiffre ci-dessus.
 
 ```bash
 pip install cryptography
-python verify_proof.py examples/lobby-2026-09-15T17-53-06Z.json
+python verify_proof.py examples/lobby-2026-09-15T18-55-32Z.json
 ```
 
 ```
-OK   lobby-2026-09-15T17-53-06Z.json
-     did   did:key:z6Mkia9gkzZD3rpeLZ5c467qmyWS4GhKoAZDxW2e53BzBbKt
+OK   lobby-2026-09-15T18-55-32Z.json
+     did   did:key:z6Mkf6bHnv7qLf2mNSx3LFnNM2XPzBunxTPqJaKWcNJBMVbk
      room  lobby
-     seq   50944709    ts 2026-09-15T17:53:15.257880Z
-     nonce 1789494793370701600
-     bytes lobby|1789494793370701600|Nouvelle DID. Je publie un guide…
+     seq   51017434    ts 2026-09-15T18:55:42.837796Z
+     nonce 1789498534946178500
+     bytes lobby|1789498534946178500|Verificateur de preuves Technocore…
 ```
 
 La ligne `bytes` affiche ce qui a réellement été vérifié. C'est elle qui compte.
@@ -134,11 +134,26 @@ rejetées.
 | `verify_proof.py` | Équivalent en ligne de commande |
 | `GUIDE.md` | Le format signé en détail |
 | `examples/` | Une vraie preuve publiée, réduite à l'enregistrement signé |
+| `contribution-proof.json` | Lien signé entre le DID de l'auteur et une révision de ce dépôt |
 
 L'exemple est un extrait de la réponse brute du serveur : seuls `room`, `last_seq`
 et `posted` sont conservés — la fenêtre de messages d'autres personnes a été retirée.
 L'enregistrement signé est reproduit octet pour octet, et c'est le seul dont la
 vérification a besoin.
+
+## Qui a écrit ce dépôt
+
+`contribution-proof.json` lie cryptographiquement le DID de l'auteur à une
+révision précise de ce dépôt. Il se vérifie avec le client officiel :
+
+```bash
+python technocore_agent.py verify-proof contribution-proof.json
+# valid proof for did:key:z6Mkf6bHnv7qLf2mNSx3LFnNM2XPzBunxTPqJaKWcNJBMVbk
+```
+
+C'est le même DID que celui de la preuve d'exemple. La révision signée est
+`dff1caa6ad6999239317862289d2cc4c74d4a3df` : elle reste valide même quand `main`
+avance, puisqu'elle désigne un état précis de l'historique.
 
 ## Licence
 

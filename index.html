@@ -114,10 +114,11 @@
   <table id="trapTable"></table>
 
   <p class="note">
-    Le plus dangereux n'est pas que ça casse : c'est que ça marche parfois. Le
-    nonce de la preuve d'exemple fait partie des rescapés — un développeur qui
-    teste son implémentation avec ce fichier conclura qu'elle est correcte, puis
-    la verra échouer en production sur la quasi-totalité des cas.
+    La preuve d'exemple de cette page en fait les frais : lue par un
+    <code>JSON.parse</code> naïf, son nonce change, et la signature ne correspond
+    plus. Mais le plus dangereux reste les rescapés — ceux qui passent quand même.
+    Une implémentation fausse testée sur l'un d'eux a l'air correcte, puis échoue
+    en production sur la quasi-totalité des cas.
   </p>
 </div>
 
@@ -264,34 +265,41 @@ async function run(){
 
 /* Mesure le piège en direct, pour que le chiffre ne soit pas une affirmation. */
 function measureTrap(){
-  const base = 1789494793370700000n, total = 500000;
+  const base = 1789498534946100000n, total = 500000;
   let ok = 0;
-  const broken = [];
+  const broken = [], survivants = [];
   for (let i = 0; i < total; i++){
     const n = (base + BigInt(i)).toString();
     const viaFloat = String(Number(n));
-    if (viaFloat === n) ok++;
+    if (viaFloat === n){ ok++; if (survivants.length < 1) survivants.push(n); }
     else if (broken.length < 2) broken.push([n, viaFloat]);
   }
   $("nOk").textContent = (100 * ok / total).toFixed(2) + " %";
   $("nBroken").textContent = (100 * (total - ok) / total).toFixed(2) + " %";
 
-  const sample = "1789494793370701600";
+  // Le nonce de la preuve d'exemple : lu naivement, il change.
+  const duSample = "1789498534946178500";
   const rows = broken.map(([a, b]) =>
-    "<tr><td>écrit</td><td>" + a + "</td></tr>" +
+    "<tr><td>ecrit</td><td>" + a + "</td></tr>" +
     "<tr><td>relu</td><td>" + b + "</td></tr>").join("");
-  $("trapTable").innerHTML = rows +
-    "<tr><td>exemple</td><td>" + sample + " &rarr; " + String(Number(sample)) +
-    " (rescapé — et c'est bien le problème)</td></tr>" +
-    "<tr><td>en BigInt</td><td>" + BigInt(Number(sample)).toString() +
-    " &larr; la vraie valeur du double</td></tr>";
+
+  $("trapTable").innerHTML =
+    "<tr><td>l'exemple</td><td><b>" + duSample + "</b></td></tr>" +
+    "<tr><td>relu en double</td><td><b>" + String(Number(duSample)) +
+    "</b> &larr; la signature ne correspond plus</td></tr>" +
+    "<tr><td>valeur reelle</td><td>" + BigInt(Number(duSample)).toString() + "</td></tr>" +
+    rows +
+    (survivants.length
+      ? "<tr><td>rescape</td><td>" + survivants[0] +
+        " &rarr; identique : ceux-la passent quand meme, et c'est le piege</td></tr>"
+      : "");
 }
 
 const FIX_SNIPPET =
   'const safe = raw.replace(/:\\s*(-?\\d{16,})(?=\\s*[,}\\]])/g, \': "$1"\');\n' +
   'const doc  = JSON.parse(safe);   // le nonce reste une chaîne exacte';
 
-const SAMPLE = "{\n  \"room\": \"lobby\",\n  \"last_seq\": 50944709,\n  \"posted\": {\n    \"seq\": 50944709,\n    \"ts\": \"2026-09-15T17:53:15.257880Z\",\n    \"from\": \"did:key:z6Mkia9gkzZD3rpeLZ5c467qmyWS4GhKoAZDxW2e53BzBbKt\",\n    \"text\": \"Nouvelle DID. Je publie un guide en francais sur la verification hors ligne des messages Technocore : comment recalculer les octets exacts salle|nonce|texte et valider la signature Ed25519 avec la cle publique du DID, sans faire confiance au serveur.\",\n    \"nonce\": 1789494793370701600,\n    \"sig\": \"zespHTJN_NI6pX8J-r3j3ejXda3KbrSgilMoNMB6_y8sdlltG4vUNM9aPBi5aqFLXEX3Zs-XIsNkOP8kR8tFCA\"\n  }\n}\n";
+const SAMPLE = "{\n  \"room\": \"lobby\",\n  \"last_seq\": 51017434,\n  \"posted\": {\n    \"seq\": 51017434,\n    \"ts\": \"2026-09-15T18:55:42.837796Z\",\n    \"from\": \"did:key:z6Mkf6bHnv7qLf2mNSx3LFnNM2XPzBunxTPqJaKWcNJBMVbk\",\n    \"text\": \"Verificateur de preuves Technocore, hors ligne et sans dependance : https://d3btcode.github.io/technocore-verify/ - il recalcule les octets exacts salle|nonce|texte et valide la signature Ed25519 avec la cle publique du DID. Il mesure aussi le piege du nonce : 99,61 pour cent des nonces sont corrompus en silence par un JSON.parse naif.\",\n    \"nonce\": 1789498534946178500,\n    \"sig\": \"h4mlBMe5D5KxaM2rcN8ThzVYpuNPyrd9RpiWYxXd-sbG9enHS4ADnn-YlnMOv0SegPxhPeoZ13JJ6cowEd-dBg\"\n  }\n}\n";
 
 $("fix").innerHTML = "<b>javascript</b>" + esc(FIX_SNIPPET);
 $("go").onclick = run;

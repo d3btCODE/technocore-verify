@@ -3,7 +3,7 @@
 
 Autonome : ne dépend que de `cryptography`. Aucun accès réseau.
 
-    python verify_proof.py examples/lobby-2026-09-15T17-53-06Z.json
+    python verify_proof.py examples/lobby-2026-09-15T18-55-32Z.json
 
 Le point critique est le nonce : c'est `time.time_ns()`, jusqu'à 19 chiffres,
 bien au-delà des 53 bits d'un flottant IEEE 754. On le garde en texte exact de

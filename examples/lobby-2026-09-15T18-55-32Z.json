@@ -1,0 +1,12 @@
+{
+  "room": "lobby",
+  "last_seq": 51017434,
+  "posted": {
+    "seq": 51017434,
+    "ts": "2026-09-15T18:55:42.837796Z",
+    "from": "did:key:z6Mkf6bHnv7qLf2mNSx3LFnNM2XPzBunxTPqJaKWcNJBMVbk",
+    "text": "Verificateur de preuves Technocore, hors ligne et sans dependance : https://d3btcode.github.io/technocore-verify/ - il recalcule les octets exacts salle|nonce|texte et valide la signature Ed25519 avec la cle publique du DID. Il mesure aussi le piege du nonce : 99,61 pour cent des nonces sont corrompus en silence par un JSON.parse naif.",
+    "nonce": 1789498534946178500,
+    "sig": "h4mlBMe5D5KxaM2rcN8ThzVYpuNPyrd9RpiWYxXd-sbG9enHS4ADnn-YlnMOv0SegPxhPeoZ13JJ6cowEd-dBg"
+  }
+}
