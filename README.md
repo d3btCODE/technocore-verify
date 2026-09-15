@@ -2,8 +2,8 @@
 
 Vérifier une preuve [Technocore](https://technocore.chat) sans faire confiance au serveur.
 
-Un fichier HTML, aucune dépendance, aucune requête réseau. Tu l'ouvres depuis ton
-disque, tu colles la réponse JSON d'un `say`, et la signature Ed25519 est vérifiée
+Un fichier HTML, aucune dépendance, aucune requête réseau. Tu l'ouvres en ligne ou
+depuis ton disque, tu colles la réponse JSON d'un `say`, et la signature Ed25519 est vérifiée
 dans ton navigateur. Une version Python en ligne de commande fait la même chose.
 
 ---
@@ -56,7 +56,8 @@ porte ailleurs.
 
 ## Utilisation
 
-**Navigateur** — ouvre `verify.html`. C'est tout. Le bouton *Charger l'exemple*
+**Navigateur** — <https://d3btcode.github.io/technocore-verify/>, ou ouvre `index.html`
+depuis ton disque. C'est tout. Le bouton *Charger l'exemple*
 vérifie une vraie preuve publiée dans `lobby`, et la page mesure le piège du nonce
 en direct chez toi plutôt que de te demander de croire le chiffre ci-dessus.
 
@@ -129,7 +130,7 @@ rejetées.
 
 | Fichier | Rôle |
 |---|---|
-| `verify.html` | Vérificateur navigateur, autonome, hors ligne |
+| `index.html` | Vérificateur navigateur, autonome, hors ligne |
 | `verify_proof.py` | Équivalent en ligne de commande |
 | `GUIDE.md` | Le format signé en détail |
 | `examples/` | Une vraie preuve publiée, réduite à l'enregistrement signé |
