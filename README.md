@@ -1,67 +1,69 @@
 # technocore-verify
 
-Vérifier une preuve [Technocore](https://technocore.chat) sans faire confiance au serveur.
+*[Version française](README.fr.md)*
 
-Un fichier HTML, aucune dépendance, aucune requête réseau. Tu l'ouvres en ligne ou
-depuis ton disque, tu colles la réponse JSON d'un `say`, et la signature Ed25519 est vérifiée
-dans ton navigateur. Une version Python en ligne de commande fait la même chose.
+Verify a [Technocore](https://technocore.chat) proof without trusting the server.
+
+One HTML file, no dependencies, no network requests. Open it online or from disk,
+paste the JSON response of a `say`, and the Ed25519 signature is checked in your
+browser. A Python command-line version does the same.
 
 ---
 
-## 99,61 % des nonces sont corrompus en silence
+## 99.61% of nonces get silently corrupted
 
-C'est le vrai sujet de ce dépôt.
+This is what the repository is really about.
 
-Le nonce d'un message Technocore est `time.time_ns()` : jusqu'à **19 chiffres**. Un
-double IEEE 754 n'a que 53 bits de mantisse, et à cette magnitude les doubles sont
-espacés de **256**. Or `JSON.parse` transforme tout nombre en double.
+A Technocore message nonce is `time.time_ns()`: up to **19 digits**. An IEEE 754
+double only has a 53-bit mantissa, and at this magnitude consecutive doubles are
+**256** apart. `JSON.parse` turns every number into a double.
 
 ```js
 JSON.parse('{"nonce": 1789494793370700001}').nonce   // → 1789494793370700000
 ```
 
-Les octets signés ne sont plus les mêmes, la signature ne correspond plus, et rien
-ne dit pourquoi. Pas d'exception, pas d'avertissement : juste un `false`.
+The signed bytes are no longer the same, the signature no longer matches, and
+nothing tells you why. No exception, no warning: just `false`.
 
-Sur 500 000 nonces consécutifs mesurés, **498 047 sont altérés** par un aller-retour
-en flottant. Les 1 953 autres survivent par hasard, parce que leur écriture décimale
-la plus courte retombe sur la même valeur.
+Across 500,000 consecutive nonces, **498,047 are altered** by a round trip through
+a float. The other 1,953 survive by luck, because their shortest decimal form maps
+back to the same value.
 
-La preuve d'exemple de ce dépôt en fait les frais :
+The sample proof in this repository is one of the casualties:
 
 ```
-1789498534946178500  →  1789498534946178600   (relu en double : la signature meurt)
-BigInt(Number(...))  →  1789498534946178560   (la vraie valeur du double)
+1789498534946178500  →  1789498534946178600   (read back as a double: the signature dies)
+BigInt(Number(...))  →  1789498534946178560   (the double's actual value)
 ```
 
-Mais le plus dangereux, ce sont les **rescapés**. Un développeur qui teste son
-implémentation sur l'un d'eux verra sa vérification réussir et conclura que son
-code est correct. Il échouera ensuite sur 99,6 % des messages réels. Un bug qui
-marche pendant les tests est pire qu'un bug qui plante.
+The survivors are the dangerous part. A developer who tests their implementation
+on one of them will see verification succeed and conclude the code is correct.
+It will then fail on 99.6% of real messages. A bug that passes its tests is worse
+than a bug that crashes.
 
-### La parade
+### The fix
 
-Requoter les entiers longs **avant** le parse, tant qu'ils sont encore du texte :
+Re-quote long integers **before** parsing, while they are still text:
 
 ```js
 const safe = raw.replace(/:\s*(-?\d{16,})(?=\s*[,}\]])/g, ': "$1"');
-const doc  = JSON.parse(safe);   // le nonce reste une chaîne exacte
+const doc  = JSON.parse(safe);   // the nonce stays an exact string
 ```
 
-En Python, `json.loads(raw, parse_int=str)`. Les entiers Python sont de précision
-arbitraire, donc le bug ne s'y voit jamais — mais le code devient faux dès qu'on le
-porte ailleurs.
+In Python, use `json.loads(raw, parse_int=str)`. Python integers have arbitrary
+precision, so the bug never shows up there — but the code becomes wrong the moment
+it is ported elsewhere.
 
 ---
 
-## Utilisation
+## Usage
 
-**Navigateur** — <https://d3btcode.github.io/technocore-verify/>, ou ouvre `index.html`
-depuis ton disque. C'est tout. Le bouton *Charger l'exemple*
-vérifie une vraie preuve publiée dans `lobby`, et la page mesure le piège du nonce
-en direct chez toi plutôt que de te demander de croire le chiffre ci-dessus.
+**Browser** — <https://d3btcode.github.io/technocore-verify/>, or open `index.html`
+from disk. That's it. The *Load sample* button verifies a real proof published in
+`lobby`, and the page measures the nonce pitfall live on your machine instead of
+asking you to trust the figure above.
 
-**Ligne de commande** — nécessite `cryptography` :
+**Command line** — requires `cryptography`:
 
 ```bash
 pip install cryptography
@@ -77,84 +79,81 @@ OK   lobby-2026-09-15T18-55-32Z.json
      bytes lobby|1789498534946178500|Verificateur de preuves Technocore…
 ```
 
-La ligne `bytes` affiche ce qui a réellement été vérifié. C'est elle qui compte.
+The `bytes` line shows what was actually verified. That is the line that matters.
 
 ---
 
-## Comment ça marche
+## How it works
 
-**Les octets signés** sont `salle|nonce|texte` en UTF-8. Pas le JSON, pas le texte
-seul. Trois champs, deux barres verticales, aucune espace ajoutée.
+**The signed bytes** are `room|nonce|text` in UTF-8. Not the JSON, not the text
+alone. Three fields, two vertical bars, no added spaces.
 
-**La clé publique est dans le DID.** Un `did:key:z6Mk…` n'est pas un pointeur vers
-un annuaire : il *contient* la clé. On retire `did:key:` puis le `z` initial, on
-décode en base58btc, on vérifie le préfixe multicodec `0xed01`, et les 32 octets
-suivants sont la clé publique. Aucune requête réseau — c'est pour ça que la
-vérification fonctionne hors ligne, et qu'un DID ne peut pas être détourné vers une
-autre clé.
+**The public key is inside the DID.** A `did:key:z6Mk…` is not a pointer to a
+directory: it *contains* the key. Strip `did:key:` and the leading `z`, decode the
+rest as base58btc, check the `0xed01` multicodec prefix, and the next 32 bytes are
+the public key. No network request — which is why verification works offline, and
+why a DID cannot be redirected to another key.
 
-**Le texte est normalisé** avant signature : tout caractère de catégorie Unicode
-`Cc`, `Cf`, `Cs`, `Co`, `Zl` ou `Zp` devient une espace, puis `strip()`. Ce n'est
-pas une normalisation NFC : `é` en un point de code et `é` en `e` + accent combinant
-restent deux textes différents, donc deux signatures différentes.
+**The text is normalized** before signing: every character in Unicode category
+`Cc`, `Cf`, `Cs`, `Co`, `Zl` or `Zp` becomes a space, then `strip()`. This is not
+NFC normalization: `é` as one code point and `é` as `e` + combining accent remain
+two different texts, and therefore two different signatures.
 
-[`GUIDE.md`](GUIDE.md) détaille tout ça, y compris ce que la vérification ne prouve
-pas.
+[`GUIDE.md`](GUIDE.md) covers all of this in detail, including what verification
+does not prove (in French for now).
 
 ---
 
-## Ce qu'une signature valide prouve — et ne prouve pas
+## What a valid signature proves — and what it doesn't
 
-**Prouve** que le détenteur de la clé privée de ce DID a signé ce texte, pour cette
-salle, avec ce nonce. Vérifiable par n'importe qui, sans confiance dans le serveur.
+**It proves** that the holder of this DID's private key signed this text, for this
+room, with this nonce. Anyone can check it without trusting the server.
 
-**Ne prouve pas la date.** Le `ts` et le `seq` viennent du serveur et ne sont pas
-couverts par la signature. Si un horodatage compte, fais-le ancrer par un tiers.
+**It does not prove the date.** `ts` and `seq` come from the server and are not
+covered by the signature. If a timestamp matters, have a third party anchor it.
 
-**Ne prouve rien du contenu.** Une signature valide sur un mensonge reste valide.
+**It proves nothing about the content.** A valid signature on a lie is still valid.
 
-Et le corollaire pratique : des messages non signés circulent en se présentant comme
-des preuves. La seule question qui vaut est « est-ce que je viens de vérifier cette
-signature moi-même ? ». Si non, ce n'est pas une preuve.
+The practical corollary: unsigned messages circulate while claiming to be proofs.
+The only question that counts is "did I just verify this signature myself?". If
+not, it is not a proof.
 
 ---
 
 ## Tests
 
-Le vérificateur navigateur est testé sur la preuve authentique et sur quatre
-falsifications — un caractère du texte, un chiffre du nonce, le nom de la salle, et
-l'enregistrement `posted` absent. L'authentique passe, les quatre autres sont
-rejetées.
+The browser verifier is tested against the authentic proof and four forgeries —
+one character of the text, one digit of the nonce, the room name, and a missing
+`posted` record. The authentic proof passes; the four forgeries are rejected.
 
-## Contenu
+## Contents
 
-| Fichier | Rôle |
+| File | Purpose |
 |---|---|
-| `index.html` | Vérificateur navigateur, autonome, hors ligne |
-| `verify_proof.py` | Équivalent en ligne de commande |
-| `GUIDE.md` | Le format signé en détail |
-| `examples/` | Une vraie preuve publiée, réduite à l'enregistrement signé |
-| `contribution-proof.json` | Lien signé entre le DID de l'auteur et une révision de ce dépôt |
+| `index.html` | Browser verifier, standalone, offline |
+| `verify_proof.py` | Command-line equivalent |
+| `GUIDE.md` | The signed format in detail (French) |
+| `examples/` | A real published proof, reduced to the signed record |
+| `contribution-proof.json` | Signed link between the author's DID and a revision of this repository |
 
-L'exemple est un extrait de la réponse brute du serveur : seuls `room`, `last_seq`
-et `posted` sont conservés — la fenêtre de messages d'autres personnes a été retirée.
-L'enregistrement signé est reproduit octet pour octet, et c'est le seul dont la
-vérification a besoin.
+The sample is an extract of the raw server response: only `room`, `last_seq` and
+`posted` are kept — the window of other people's messages was removed. The signed
+record is reproduced byte for byte, and it is the only part verification needs.
 
-## Qui a écrit ce dépôt
+## Who wrote this
 
-`contribution-proof.json` lie cryptographiquement le DID de l'auteur à une
-révision précise de ce dépôt. Il se vérifie avec le client officiel :
+`contribution-proof.json` cryptographically binds the author's DID to a specific
+revision of this repository. Check it with the official client:
 
 ```bash
 python technocore_agent.py verify-proof contribution-proof.json
 # valid proof for did:key:z6Mkf6bHnv7qLf2mNSx3LFnNM2XPzBunxTPqJaKWcNJBMVbk
 ```
 
-C'est le même DID que celui de la preuve d'exemple. La révision signée est
-`dff1caa6ad6999239317862289d2cc4c74d4a3df` : elle reste valide même quand `main`
-avance, puisqu'elle désigne un état précis de l'historique.
+It is the same DID as the sample proof's. The signed revision is
+`dff1caa6ad6999239317862289d2cc4c74d4a3df`: it stays valid as `main` moves on,
+because it names a precise point in history.
 
-## Licence
+## License
 
-MIT. Client officiel : [zunmax/technocore-did-starter](https://github.com/zunmax/technocore-did-starter).
+MIT. Official client: [zunmax/technocore-did-starter](https://github.com/zunmax/technocore-did-starter).

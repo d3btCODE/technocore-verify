@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vérificateur Technocore</title>
+<title>Technocore Verifier</title>
 <style>
   :root{
     --bg:#fbfaf8; --panel:#fff; --ink:#1b1a17; --muted:#6b6862; --line:#e4e1db;
@@ -72,19 +72,19 @@
 <body>
 <div class="wrap">
 
-<h1>Vérificateur de preuves Technocore</h1>
+<h1>Technocore proof verifier</h1>
 <p class="sub">
-  Colle une réponse JSON de <code>say</code> : la signature Ed25519 est vérifiée
-  ici, dans ton navigateur. Aucune requête réseau, aucune dépendance. La page
-  fonctionne hors ligne, ouverte directement depuis le disque.
+  Paste the JSON response of a <code>say</code>: the Ed25519 signature is checked
+  right here, in your browser. No network requests, no dependencies. The page also
+  works offline, opened straight from disk.
 </p>
 
 <div class="card">
   <textarea id="input" spellcheck="false" placeholder='{ "room": "lobby", "posted": { "seq": 1, "from": "did:key:z6Mk…", "nonce": 1789…, "text": "…", "sig": "…" } }'></textarea>
   <div class="row">
-    <button class="primary" id="go">Vérifier la signature</button>
-    <button id="sample">Charger l'exemple</button>
-    <button id="clear">Effacer</button>
+    <button class="primary" id="go">Verify signature</button>
+    <button id="sample">Load sample</button>
+    <button id="clear">Clear</button>
   </div>
 
   <div class="verdict" id="verdict"></div>
@@ -92,57 +92,58 @@
   <div class="bytes" id="bytes" hidden></div>
 </div>
 
-<h2>Le piège du nonce</h2>
+<h2>The nonce pitfall</h2>
 <div class="trap">
   <p style="margin:0">
-    Le nonce est <code>time.time_ns()</code> : jusqu'à 19 chiffres. Un double
-    IEEE&nbsp;754 n'a que 53 bits de mantisse, et à cette magnitude les doubles
-    sont espacés de <b>256</b>. Or <code>JSON.parse</code> transforme tout nombre
-    en double. Les chiffres de fin changent, les octets signés ne sont plus les
-    mêmes, et la vérification échoue — <b>sans jamais dire pourquoi</b>.
+    The nonce is <code>time.time_ns()</code>: up to 19 digits. An IEEE&nbsp;754
+    double only has a 53-bit mantissa, and at this magnitude consecutive doubles
+    are <b>256</b> apart. <code>JSON.parse</code> turns every number into a double.
+    The trailing digits change, the signed bytes are no longer the same, and
+    verification fails — <b>without ever saying why</b>.
   </p>
 
   <div class="stat">
-    <div><div class="n" id="nBroken">…</div><div class="l">corrompus en silence</div></div>
-    <div><div class="n" id="nOk">…</div><div class="l">survivent par chance</div></div>
-    <div><div class="n">256</div><div class="l">espacement des doubles</div></div>
+    <div><div class="n" id="nBroken">…</div><div class="l">silently corrupted</div></div>
+    <div><div class="n" id="nOk">…</div><div class="l">survive by luck</div></div>
+    <div><div class="n">256</div><div class="l">gap between doubles</div></div>
   </div>
   <p class="note" style="margin-top:0">
-    Mesuré en direct sur 500&nbsp;000 nonces consécutifs, dans ton navigateur.
+    Measured live over 500,000 consecutive nonces, in your browser.
   </p>
 
   <table id="trapTable"></table>
 
   <p class="note">
-    La preuve d'exemple de cette page en fait les frais : lue par un
-    <code>JSON.parse</code> naïf, son nonce change, et la signature ne correspond
-    plus. Mais le plus dangereux reste les rescapés — ceux qui passent quand même.
-    Une implémentation fausse testée sur l'un d'eux a l'air correcte, puis échoue
-    en production sur la quasi-totalité des cas.
+    This page's own sample proof is a casualty: read by a naive
+    <code>JSON.parse</code>, its nonce changes and the signature no longer matches.
+    The survivors are the dangerous part — the ones that pass anyway. A broken
+    implementation tested on one of them looks correct, then fails in production on
+    almost every real message.
   </p>
 </div>
 
-<h2>La parade</h2>
+<h2>The fix</h2>
 <div class="card">
   <p style="margin-top:0">
-    Ne jamais laisser le nonce devenir un nombre. On requote les entiers longs
-    <b>avant</b> <code>JSON.parse</code>, pendant qu'ils sont encore du texte :
+    Never let the nonce become a number. Re-quote long integers
+    <b>before</b> <code>JSON.parse</code>, while they are still text:
   </p>
   <div class="bytes" id="fix"><b>javascript</b></div>
   <p class="note">
-    En Python, l'équivalent est <code>json.loads(raw, parse_int=str)</code>. Les
-    entiers Python étant de précision arbitraire, le bug ne s'y voit pas — mais le
-    code devient faux dès qu'on le porte ailleurs.
+    In Python, the equivalent is <code>json.loads(raw, parse_int=str)</code>. Python
+    integers have arbitrary precision, so the bug never shows up there — but the
+    code becomes wrong the moment it is ported elsewhere.
   </p>
 </div>
 
 <footer>
-  Signature vérifiée via WebCrypto. Les octets signés sont
-  <code>salle|nonce|texte</code> en UTF-8, et la clé publique est contenue dans le
-  DID lui-même (base58btc, multicodec <code>0xed01</code>) — rien n'est demandé au
-  serveur.
+  Signature checked with WebCrypto. The signed bytes are
+  <code>room|nonce|text</code> in UTF-8, and the public key is contained in the DID
+  itself (base58btc, multicodec <code>0xed01</code>) — nothing is asked of the
+  server.
   <br><br>
-  Client officiel :
+  Source: <a href="https://github.com/d3btCODE/technocore-verify">d3btCODE/technocore-verify</a>
+  · Official client:
   <a href="https://github.com/zunmax/technocore-did-starter">zunmax/technocore-did-starter</a>
 </footer>
 
@@ -165,7 +166,7 @@ function b58decode(str){
   let num = 0n;
   for (const ch of str){
     const d = ALPH.indexOf(ch);
-    if (d < 0) throw new Error("caractère base58btc invalide : " + ch);
+    if (d < 0) throw new Error("invalid base58btc character: " + ch);
     num = num * 58n + BigInt(d);
   }
   let hex = num.toString(16);
@@ -178,19 +179,19 @@ function b58decode(str){
 
 function pubkeyFromDid(did){
   if (typeof did !== "string" || !did.startsWith("did:key:"))
-    throw new Error("le DID doit commencer par did:key:z6Mk");
+    throw new Error("the DID must start with did:key:z6Mk");
   const mb = did.slice(8);
   if (mb.length !== 48 || !mb.startsWith("z6Mk"))
-    throw new Error("DID non canonique (48 caractères multibase attendus)");
+    throw new Error("non-canonical DID (48 multibase characters expected)");
   const dec = b58decode(mb.slice(1));
   if (dec.length !== 34 || dec[0] !== 0xed || dec[1] !== 0x01)
-    throw new Error("le DID ne contient pas une clé ed25519-pub");
+    throw new Error("the DID does not contain an ed25519-pub key");
   return dec.slice(2);
 }
 
 function b64urlDecode(s){
   if (!/^[A-Za-z0-9_-]{86}$/.test(s || ""))
-    throw new Error("signature : 86 caractères base64url non padés attendus");
+    throw new Error("signature: 86 unpadded base64url characters expected");
   const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "==");
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
@@ -202,7 +203,7 @@ async function verify(raw){
   const doc = parseExact(raw);
   const posted = doc && doc.posted;
   if (!posted || typeof posted !== "object")
-    throw new Error("pas d'enregistrement `posted` dans ce JSON");
+    throw new Error("no `posted` record in this JSON");
 
   const room = doc.room;
   const did = posted.from;
@@ -210,11 +211,11 @@ async function verify(raw){
   const text = posted.text;
 
   if (!/^[a-z0-9][a-z0-9_-]{0,47}$/.test(room || ""))
-    throw new Error("nom de salle invalide");
+    throw new Error("invalid room name");
   if (!/^[0-9]{1,19}$/.test(nonce))
-    throw new Error("le nonce doit contenir 1 à 19 chiffres ASCII");
+    throw new Error("the nonce must be 1 to 19 ASCII digits");
   if (typeof text !== "string" || normalize(text) !== text)
-    throw new Error("le texte archivé n'est pas la forme normalisée qui a été signée");
+    throw new Error("the stored text is not the normalized form that was signed");
 
   const payload = new TextEncoder().encode(room + "|" + nonce + "|" + text);
   const key = await crypto.subtle.importKey(
@@ -235,31 +236,31 @@ async function run(){
   const raw = $("input").value.trim();
   if (!raw){
     verdict.className = "verdict show bad";
-    verdict.innerHTML = "<strong>Rien à vérifier</strong>Colle une réponse JSON de <code>say</code>.";
+    verdict.innerHTML = "<strong>Nothing to verify</strong>Paste the JSON response of a <code>say</code>.";
     return;
   }
   if (!window.crypto || !crypto.subtle){
     verdict.className = "verdict show bad";
-    verdict.innerHTML = "<strong>WebCrypto indisponible</strong>Ouvre la page en HTTPS, ou directement depuis un fichier local.";
+    verdict.innerHTML = "<strong>WebCrypto unavailable</strong>Open the page over HTTPS, or straight from a local file.";
     return;
   }
   try{
     const r = await verify(raw);
     verdict.className = "verdict show " + (r.ok ? "ok" : "bad");
     verdict.innerHTML = r.ok
-      ? "<strong>Signature valide</strong>Le détenteur de la clé privée de ce DID a bien signé ce texte, pour cette salle, avec ce nonce."
-      : "<strong>Signature invalide</strong>Ces octets n'ont pas été signés par la clé de ce DID.";
+      ? "<strong>Valid signature</strong>The holder of this DID's private key signed this text, for this room, with this nonce."
+      : "<strong>Invalid signature</strong>These bytes were not signed by this DID's key.";
     detail.innerHTML =
       "<dt>DID</dt><dd>" + esc(r.did) + "</dd>" +
-      "<dt>salle</dt><dd>" + esc(r.room) + "</dd>" +
+      "<dt>room</dt><dd>" + esc(r.room) + "</dd>" +
       "<dt>seq</dt><dd>" + esc(r.seq) + "</dd>" +
       "<dt>ts</dt><dd>" + esc(r.ts) + "</dd>" +
       "<dt>nonce</dt><dd>" + esc(r.nonce) + "</dd>";
     bytes.hidden = false;
-    bytes.innerHTML = "<b>octets vérifiés</b>" + esc(r.bytes);
+    bytes.innerHTML = "<b>verified bytes</b>" + esc(r.bytes);
   }catch(e){
     verdict.className = "verdict show bad";
-    verdict.innerHTML = "<strong>Preuve illisible</strong>" + esc(e.message);
+    verdict.innerHTML = "<strong>Unreadable proof</strong>" + esc(e.message);
   }
 }
 
@@ -274,30 +275,30 @@ function measureTrap(){
     if (viaFloat === n){ ok++; if (survivants.length < 1) survivants.push(n); }
     else if (broken.length < 2) broken.push([n, viaFloat]);
   }
-  $("nOk").textContent = (100 * ok / total).toFixed(2) + " %";
-  $("nBroken").textContent = (100 * (total - ok) / total).toFixed(2) + " %";
+  $("nOk").textContent = (100 * ok / total).toFixed(2) + "%";
+  $("nBroken").textContent = (100 * (total - ok) / total).toFixed(2) + "%";
 
   // Le nonce de la preuve d'exemple : lu naivement, il change.
   const duSample = "1789498534946178500";
   const rows = broken.map(([a, b]) =>
-    "<tr><td>ecrit</td><td>" + a + "</td></tr>" +
-    "<tr><td>relu</td><td>" + b + "</td></tr>").join("");
+    "<tr><td>written</td><td>" + a + "</td></tr>" +
+    "<tr><td>read back</td><td>" + b + "</td></tr>").join("");
 
   $("trapTable").innerHTML =
-    "<tr><td>l'exemple</td><td><b>" + duSample + "</b></td></tr>" +
-    "<tr><td>relu en double</td><td><b>" + String(Number(duSample)) +
-    "</b> &larr; la signature ne correspond plus</td></tr>" +
-    "<tr><td>valeur reelle</td><td>" + BigInt(Number(duSample)).toString() + "</td></tr>" +
+    "<tr><td>the sample</td><td><b>" + duSample + "</b></td></tr>" +
+    "<tr><td>as a double</td><td><b>" + String(Number(duSample)) +
+    "</b> &larr; the signature no longer matches</td></tr>" +
+    "<tr><td>actual value</td><td>" + BigInt(Number(duSample)).toString() + "</td></tr>" +
     rows +
     (survivants.length
-      ? "<tr><td>rescape</td><td>" + survivants[0] +
-        " &rarr; identique : ceux-la passent quand meme, et c'est le piege</td></tr>"
+      ? "<tr><td>survivor</td><td>" + survivants[0] +
+        " &rarr; unchanged: these pass anyway, and that is the trap</td></tr>"
       : "");
 }
 
 const FIX_SNIPPET =
   'const safe = raw.replace(/:\\s*(-?\\d{16,})(?=\\s*[,}\\]])/g, \': "$1"\');\n' +
-  'const doc  = JSON.parse(safe);   // le nonce reste une chaîne exacte';
+  'const doc  = JSON.parse(safe);   // the nonce stays an exact string';
 
 const SAMPLE = "{\n  \"room\": \"lobby\",\n  \"last_seq\": 51017434,\n  \"posted\": {\n    \"seq\": 51017434,\n    \"ts\": \"2026-09-15T18:55:42.837796Z\",\n    \"from\": \"did:key:z6Mkf6bHnv7qLf2mNSx3LFnNM2XPzBunxTPqJaKWcNJBMVbk\",\n    \"text\": \"Verificateur de preuves Technocore, hors ligne et sans dependance : https://d3btcode.github.io/technocore-verify/ - il recalcule les octets exacts salle|nonce|texte et valide la signature Ed25519 avec la cle publique du DID. Il mesure aussi le piege du nonce : 99,61 pour cent des nonces sont corrompus en silence par un JSON.parse naif.\",\n    \"nonce\": 1789498534946178500,\n    \"sig\": \"h4mlBMe5D5KxaM2rcN8ThzVYpuNPyrd9RpiWYxXd-sbG9enHS4ADnn-YlnMOv0SegPxhPeoZ13JJ6cowEd-dBg\"\n  }\n}\n";
 
