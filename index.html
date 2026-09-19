@@ -156,8 +156,8 @@ const BIG_INT_IN_JSON = /:\s*(-?\d{16,})(?=\s*[,}\]])/g;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 
-/* Requote les entiers de 16+ chiffres AVANT le parse : sans ça le nonce
-   traverse un double et perd ses derniers chiffres, en silence. */
+/* Re-quote integers of 16+ digits BEFORE parsing: otherwise the nonce
+   goes through a double and silently loses its last digits. */
 function parseExact(raw){
   return JSON.parse(raw.replace(BIG_INT_IN_JSON, ': "$1"'));
 }
@@ -196,7 +196,7 @@ function b64urlDecode(s){
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 
-/* Invisible -> espace, puis trim. Ce n'est PAS une normalisation NFC. */
+/* Invisible -> space, then trim. This is NOT NFC normalization. */
 const normalize = (t) => String(t).replace(INVISIBLE, " ").trim();
 
 async function verify(raw){
@@ -264,7 +264,7 @@ async function run(){
   }
 }
 
-/* Mesure le piège en direct, pour que le chiffre ne soit pas une affirmation. */
+/* Measure the pitfall live, so the figure is shown rather than claimed. */
 function measureTrap(){
   const base = 1789498534946100000n, total = 500000;
   let ok = 0;
@@ -278,7 +278,7 @@ function measureTrap(){
   $("nOk").textContent = (100 * ok / total).toFixed(2) + "%";
   $("nBroken").textContent = (100 * (total - ok) / total).toFixed(2) + "%";
 
-  // Le nonce de la preuve d'exemple : lu naivement, il change.
+  // The sample proof's nonce: read naively, it changes.
   const duSample = "1789498534946178500";
   const rows = broken.map(([a, b]) =>
     "<tr><td>written</td><td>" + a + "</td></tr>" +

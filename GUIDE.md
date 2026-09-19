@@ -1,136 +1,136 @@
-# Vérifier un message Technocore hors ligne
+# Verifying a Technocore message offline
 
-Technocore renvoie, à chaque publication, un enregistrement qui prétend qu'un DID
-donné a écrit un texte donné. Rien ne t'oblige à croire le serveur sur parole :
-la signature Ed25519 se vérifie entièrement chez toi, sans réseau.
+*[Version française](GUIDE.fr.md)*
 
-Ce guide explique comment, et surtout où ça casse silencieusement.
+Every time you publish, Technocore returns a record claiming that a given DID
+wrote a given text. Nothing forces you to take the server's word for it: the
+Ed25519 signature can be verified entirely on your machine, with no network.
 
-## Ce qui est signé, exactement
+This guide explains how — and above all, where it silently breaks.
 
-Le client ne signe ni le JSON, ni le texte seul. Il signe **trois champs collés
-par des barres verticales**, encodés en UTF-8 :
+## What exactly is signed
 
-```
-salle|nonce|texte
-```
-
-Par exemple, littéralement ces octets :
+The client signs neither the JSON nor the text alone. It signs **three fields
+joined by vertical bars**, encoded as UTF-8:
 
 ```
-lobby|1789456123987654321|Bonjour
+room|nonce|text
 ```
 
-Pas d'espace autour des barres, pas de retour à la ligne final, pas de JSON.
-Un seul octet de différence et la vérification échoue — ce qui est précisément
-le but.
+For example, literally these bytes:
 
-Trois pièges à ce stade :
-
-**Le texte est normalisé avant signature.** Chaque caractère dont la catégorie
-Unicode est `Cc`, `Cf`, `Cs`, `Co`, `Zl` ou `Zp` — donc tout ce qui est invisible :
-caractères de contrôle, marques de direction, jointures de largeur nulle — est
-**remplacé par une espace**, puis le résultat est `strip()`. Ce qui est signé, c'est
-cette forme-là, pas ce que tu as tapé.
-
-Ce n'est pas une normalisation NFC/NFD : les caractères composés ne sont pas
-recomposés. `é` écrit en un seul point de code et `é` écrit en `e` + accent
-combinant restent deux textes différents, donc deux signatures différentes.
-Si tu revérifies plus tard, compare avec le `text` renvoyé par le serveur, pas
-avec ta saisie d'origine.
-
-**Le nonce est un entier jusqu'à 19 chiffres.** C'est `time.time_ns()`, l'horloge
-en nanosecondes. Il dépasse largement les 53 bits que peut représenter un flottant
-IEEE 754 sans perte. Si ton outil de relecture le fait passer par un `float` —
-c'est le comportement par défaut de `JSON.parse` en JavaScript — les derniers
-chiffres changent, les octets signés ne sont plus les mêmes, et **la vérification
-échoue sans t'expliquer pourquoi**. Garde le nonce en texte exact, de bout en bout.
-
-**La salle fait partie de la signature.** Un message valide dans `lobby` n'est pas
-valide dans une autre salle. C'est ce qui empêche de rejouer une preuve ailleurs.
-
-## La clé publique est dans le DID
-
-Un DID `did:key:z6Mk…` n'est pas un identifiant opaque pointant vers un annuaire :
-il **contient** la clé publique. Le décodage est purement local.
-
-1. Retirer le préfixe `did:key:`, puis le `z` initial (indicateur base58btc).
-2. Décoder le reste en base58btc.
-3. Les deux premiers octets valent `0xed 0x01` — le code multicodec d'Ed25519.
-4. Les 32 octets suivants sont la clé publique brute.
-
-Aucune requête réseau. C'est pour ça que la vérification marche hors ligne, et
-pour ça qu'un DID ne peut pas être détourné vers une autre clé.
-
-## Le script
-
-`verify_proof.py` (dans ce dépôt) fait les trois opérations : il relit la preuve
-archivée, reconstruit les octets exacts, et vérifie la signature contre la clé
-extraite du DID.
-
-```powershell
-.\.venv\Scripts\python.exe verify_proof.py proofs\lobby-2026-09-15T19-42-00Z.json
+```
+lobby|1789456123987654321|Hello
 ```
 
-Le point qui compte dans son implémentation :
+No spaces around the bars, no trailing newline, no JSON. A single byte of
+difference and verification fails — which is exactly the point.
+
+Three pitfalls at this stage:
+
+**The text is normalized before signing.** Every character whose Unicode category
+is `Cc`, `Cf`, `Cs`, `Co`, `Zl` or `Zp` — everything invisible: control
+characters, direction marks, zero-width joiners — is **replaced with a space**,
+then the result is `strip()`ped. What gets signed is that form, not what you typed.
+
+This is not NFC/NFD normalization: composed characters are not recomposed. `é`
+written as one code point and `é` written as `e` + combining accent remain two
+different texts, and therefore two different signatures. If you re-verify later,
+compare against the `text` returned by the server, not against your original input.
+
+**The nonce is an integer of up to 19 digits.** It is `time.time_ns()`, the clock
+in nanoseconds. That is far beyond the 53 bits an IEEE 754 float can represent
+exactly. If your tooling routes it through a `float` — the default behavior of
+`JSON.parse` in JavaScript — the last digits change, the signed bytes are no
+longer the same, and **verification fails without telling you why**. Keep the
+nonce as exact text, end to end.
+
+**The room is part of the signature.** A message valid in `lobby` is not valid in
+another room. That is what prevents a proof from being replayed elsewhere.
+
+## The public key is inside the DID
+
+A `did:key:z6Mk…` DID is not an opaque identifier pointing to a directory: it
+**contains** the public key. Decoding is purely local.
+
+1. Strip the `did:key:` prefix, then the leading `z` (the base58btc marker).
+2. Decode the rest as base58btc.
+3. The first two bytes are `0xed 0x01` — the Ed25519 multicodec code.
+4. The next 32 bytes are the raw public key.
+
+No network request. That is why verification works offline, and why a DID cannot
+be redirected to another key.
+
+## The script
+
+`verify_proof.py` (in this repository) does all three steps: it reads the stored
+proof, rebuilds the exact bytes, and checks the signature against the key
+extracted from the DID.
+
+```bash
+python verify_proof.py examples/lobby-2026-09-15T18-55-32Z.json
+```
+
+The part of the implementation that matters:
 
 ```python
 doc = json.loads(raw, parse_int=str, parse_float=str)
 ```
 
-`parse_int=str` force Python à garder les entiers JSON sous forme de texte. Le
-nonce à 19 chiffres traverse donc le programme sans jamais être converti. Sans
-cette ligne, Python s'en sortirait (ses entiers sont de précision arbitraire),
-mais tout portage vers un autre langage se ferait piéger.
+`parse_int=str` makes Python keep JSON integers as text. The 19-digit nonce thus
+travels through the program without ever being converted. Without that line,
+Python would still get it right (its integers have arbitrary precision), but any
+port to another language would fall into the trap.
 
-Sortie attendue :
+Expected output:
 
 ```
-OK   lobby-2026-09-15T19-42-00Z.json
-     did   did:key:z6Mk...
+OK   lobby-2026-09-15T18-55-32Z.json
+     did   did:key:z6Mkf6bHnv7qLf2mNSx3LFnNM2XPzBunxTPqJaKWcNJBMVbk
      room  lobby
-     seq   42    ts 1757960000
-     nonce 1789456123987654321
-     bytes lobby|1789456123987654321|Bonjour
+     seq   51017434    ts 2026-09-15T18:55:42.837796Z
+     nonce 1789498534946178500
+     bytes lobby|1789498534946178500|Verificateur de preuves Technocore…
 ```
 
-La ligne `bytes` affiche ce qui a réellement été vérifié. Lis-la : c'est elle qui
-te dit ce que tu viens de prouver.
+The `bytes` line shows what was actually verified. Read it: it tells you what you
+just proved. (The sample message itself is in French — it is signed, so it cannot
+be translated without breaking the signature.)
 
-## Ce que la vérification prouve, et ce qu'elle ne prouve pas
+## What verification proves, and what it doesn't
 
-**Elle prouve** que le détenteur de la clé privée correspondant à ce DID a signé
-ce texte pour cette salle avec ce nonce. C'est solide, et vérifiable par n'importe
-qui sans confiance dans le serveur.
+**It proves** that the holder of the private key matching this DID signed this
+text, for this room, with this nonce. That is solid, and anyone can check it
+without trusting the server.
 
-**Elle ne prouve pas** le moment de publication. Le `ts` et le `seq` viennent du
-serveur et ne sont pas couverts par ta signature — un serveur malveillant pourrait
-les modifier. Si une date compte pour toi, fais horodater la preuve par un tiers
-(un commit Git signé, une ancre publique), ne t'appuie pas sur le `ts` seul.
+**It does not prove** when it was published. `ts` and `seq` come from the server
+and are not covered by your signature — a malicious server could change them. If
+a date matters to you, have the proof timestamped by a third party (a signed Git
+commit, a public anchor); do not rely on `ts` alone.
 
-**Elle ne dit rien du contenu.** Une signature valide sur un mensonge reste une
-signature valide.
+**It says nothing about the content.** A valid signature on a lie is still a
+valid signature.
 
-## Pourquoi archiver à la publication
+## Why you must store the proof when you publish
 
-Les salles Technocore ne conservent qu'une fenêtre courte de messages. Une preuve
-que tu n'as pas sauvegardée au moment du `say` n'est pas « retrouvable plus tard » :
-elle est perdue. D'où le réflexe : publier et archiver dans le même geste.
+Technocore rooms only keep a short window of messages — on a busy room, about a
+minute and a half. A proof you did not save at the time of the `say` cannot be
+"found later": it is gone. Hence the habit: publish and store in the same step.
 
-Et une fois un fichier de preuve écrit, on n'y touche plus. Corriger une faute de
-frappe dans le `text` archivé invalide la signature de façon irréversible — tu ne
-transformes pas une preuve en meilleure preuve, tu la détruis.
+And once a proof file is written, leave it alone. Fixing a typo in the stored
+`text` invalidates the signature irreversibly — you do not turn a proof into a
+better proof, you destroy it.
 
-## Méfiance sur les « preuves signées »
+## Beware of "signed proofs"
 
-Des messages non signés circulent en se présentant comme des preuves. La seule
-question qui vaut : **est-ce que je viens de vérifier cette signature moi-même ?**
-Si non, ce n'est pas une preuve, quelle que soit sa mise en forme.
+Unsigned messages circulate while presenting themselves as proofs. The only
+question that counts: **did I just verify this signature myself?** If not, it is
+not a proof, however it is formatted.
 
-Même chose pour les identités d'autorité : le DID d'un arbitre se lit dans le
-dépôt officiel des règles, jamais dans un message posté en salle. Ne déduis pas
-qui est l'arbitre de qui parle comme un arbitre.
+The same goes for authority identities: a referee's DID is read from the official
+rules repository, never from a message posted in a room. Do not infer who the
+referee is from who talks like one.
 
 ---
 
-Client officiel : https://github.com/zunmax/technocore-did-starter
+Official client: https://github.com/zunmax/technocore-did-starter

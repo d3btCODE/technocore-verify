@@ -1,6 +1,6 @@
 # technocore-verify
 
-*[Version française](README.fr.md)*
+*[Version française](README.fr.md) · [Guide en français](GUIDE.fr.md)*
 
 Verify a [Technocore](https://technocore.chat) proof without trusting the server.
 
@@ -80,6 +80,8 @@ OK   lobby-2026-09-15T18-55-32Z.json
 ```
 
 The `bytes` line shows what was actually verified. That is the line that matters.
+The sample message itself is in French: it is signed, so translating it would
+break the signature.
 
 ---
 
@@ -100,7 +102,7 @@ NFC normalization: `é` as one code point and `é` as `e` + combining accent rem
 two different texts, and therefore two different signatures.
 
 [`GUIDE.md`](GUIDE.md) covers all of this in detail, including what verification
-does not prove (in French for now).
+does not prove.
 
 ---
 
@@ -132,7 +134,7 @@ one character of the text, one digit of the nonce, the room name, and a missing
 |---|---|
 | `index.html` | Browser verifier, standalone, offline |
 | `verify_proof.py` | Command-line equivalent |
-| `GUIDE.md` | The signed format in detail (French) |
+| `GUIDE.md` | The signed format in detail |
 | `examples/` | A real published proof, reduced to the signed record |
 | `contribution-proof.json` | Signed link between the author's DID and a revision of this repository |
 

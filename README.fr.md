@@ -100,7 +100,7 @@ autre clé.
 pas une normalisation NFC : `é` en un point de code et `é` en `e` + accent combinant
 restent deux textes différents, donc deux signatures différentes.
 
-[`GUIDE.md`](GUIDE.md) détaille tout ça, y compris ce que la vérification ne prouve
+[`GUIDE.fr.md`](GUIDE.fr.md) détaille tout ça, y compris ce que la vérification ne prouve
 pas.
 
 ---
@@ -134,7 +134,7 @@ rejetées.
 |---|---|
 | `index.html` | Vérificateur navigateur, autonome, hors ligne |
 | `verify_proof.py` | Équivalent en ligne de commande |
-| `GUIDE.md` | Le format signé en détail |
+| `GUIDE.fr.md` | Le format signé en détail |
 | `examples/` | Une vraie preuve publiée, réduite à l'enregistrement signé |
 | `contribution-proof.json` | Lien signé entre le DID de l'auteur et une révision de ce dépôt |
 
